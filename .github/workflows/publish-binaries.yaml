@@ -1,0 +1,135 @@
+name: Publish binaries to Github release
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cocogitto
+        run: cargo install cocogitto
+      - name: Generate changelog
+        run: cog changelog --at ${{ github.ref_name }} -t full_hash > CHANGELOG.md
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "${{ github.ref_name }}" \
+            --notes-file CHANGELOG.md \
+            --repo EgorHenek/pages-meta
+  publish-linux:
+    name: Publish binary for Linux ${{ matrix.arch }}
+    needs: create-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm64
+          - amd64
+        include:
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            asset_name: pages-meta-linux-arm64
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            asset_name: pages-meta-linux-amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../pages-meta-${{ matrix.target }}.tar.gz pages-meta
+          cd -
+      - name: Upload Release Asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.ref_name }} pages-meta-${{ matrix.target }}.tar.gz --repo EgorHenek/pages-meta
+  publish-windows:
+    name: Publish binary for Windows ${{ matrix.arch }}
+    needs: create-release
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm64
+          - amd64
+        include:
+          - arch: amd64
+            target: x86_64-pc-windows-msvc
+            asset_name: pages-meta-windows-amd64.exe
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+            asset_name: pages-meta-windows-arm64.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../pages-meta-${{ matrix.target }}.zip pages-meta.exe
+          cd -
+      - name: Upload Release Asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.ref_name }} pages-meta-${{ matrix.target }}.zip --repo EgorHenek/pages-meta
+  publish-macos:
+    name: Publish binary for macOS ${{ matrix.arch }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-13
+          - macos-14
+        include:
+          - os: macos-13
+            arch: amd64
+          - os: macos-14
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release --locked
+      - name: Package
+        shell: bash
+        run: |
+          cd target/release
+          tar czvf ../../pages-meta-${{ matrix.target }}.tar.gz pages-meta
+          cd -
+      - name: Upload Release Asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.ref_name }} pages-meta-${{ matrix.target }}.tar.gz --repo EgorHenek/pages-meta
+  publish-crate:
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CRATES_IO_TOKEN }}

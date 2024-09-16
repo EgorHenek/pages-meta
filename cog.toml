@@ -1,0 +1,18 @@
+# Configuration file for cocogitto
+pre_bump_hooks = [
+  "cargo build --release",         # verify the project builds
+  "cargo set-version {{version}}", # bump version in Cargo.toml
+]
+
+[changelog]
+# Path where the changelog will be written
+path = "CHANGELOG.md"
+# Template to use for the changelog
+template = "remote"
+# Remote repository URL
+remote = "github.com"
+# Repository owner
+owner = "EgorHenek"
+# Repository name
+repository = "pages-meta"
+authors = [{ signature = "Egor Gluhih", username = "EgorHenek" }]
