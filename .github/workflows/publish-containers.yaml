@@ -1,8 +1,9 @@
 name: Publish container images
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 jobs:
   build-and-push-container:
     runs-on: ubuntu-latest
@@ -17,6 +18,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
+            henek/pages-meta
             ghcr.io/${{ github.repository }}
           tags: |
             type=schedule
@@ -36,6 +38,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push container image
         uses: docker/build-push-action@v6
         with:

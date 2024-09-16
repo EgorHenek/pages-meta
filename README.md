@@ -2,8 +2,8 @@
 
 [![Rust](https://img.shields.io/badge/rust-stable-brightgreen.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub release](https://img.shields.io/github/release/yourusername/page-meta-extractor.svg)](https://github.com/yourusername/page-meta-extractor/releases)
-[![Docker](https://img.shields.io/docker/pulls/yourusername/page-meta-extractor.svg)](https://hub.docker.com/r/yourusername/page-meta-extractor)
+[![GitHub release](https://img.shields.io/github/release/EgorHenek/pages-meta.svg)](https://github.com/EgorHenek/pages-meta/releases)
+[![Docker](https://img.shields.io/docker/pulls/henek/pages-meta.svg)](https://hub.docker.com/r/henek/pages-meta)
 
 Page Meta Extractor is an HTTP service that takes a URL as input and returns JSON with page meta tags extracted from the specified URL.
 
@@ -17,17 +17,17 @@ Page Meta Extractor is an HTTP service that takes a URL as input and returns JSO
 
 ### From Binary (Release Page)
 
-1. Go to the [Releases](https://github.com/yourusername/page-meta-extractor/releases) page
+1. Go to the [Releases](https://github.com/EgorHenek/pages-meta/releases) page
 2. Download the latest binary for your platform
-3. Make the binary executable: `chmod +x page-meta-extractor`
-4. Run the binary: `./page-meta-extractor`
+3. Make the binary executable: `chmod +x pages-meta`
+4. Run the binary: `./pages-meta`
 
 ### Using cargo-binstall
 
 If you have `cargo-binstall` installed:
 
 ```
-cargo binstall page-meta-extractor
+cargo binstall pages-meta
 ```
 
 ### Using Cargo Install
@@ -35,14 +35,14 @@ cargo binstall page-meta-extractor
 If you have Rust and Cargo installed:
 
 ```
-cargo install page-meta-extractor
+cargo install pages-meta
 ```
 
 ### Using Docker
 
 ```
-docker pull yourusername/page-meta-extractor
-docker run -p 3000:3000 yourusername/page-meta-extractor
+docker pull henek/pages-meta
+docker run -p 3000:3000 henek/pages-meta
 ```
 
 ## Configuration
@@ -55,7 +55,7 @@ The application can be configured using the following environment variables:
 Example:
 
 ```
-HOST=0.0.0.0 PORT=8080 ./page-meta-extractor
+HOST=0.0.0.0 PORT=8080 ./pages-meta
 ```
 
 ## Usage
