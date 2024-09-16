@@ -50,6 +50,9 @@ jobs:
           target: ${{ matrix.target }}
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Install gcc-aarch64-linux-gnu
+        if: matrix.arch == 'arm64'
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Package
         shell: bash
         run: |
@@ -106,8 +109,10 @@ jobs:
           - macos-14
         include:
           - os: macos-13
+            target: x86_64-apple-darwin
             arch: amd64
           - os: macos-14
+            target: aarch64-apple-darwin
             arch: arm64
     steps:
       - uses: actions/checkout@v4
