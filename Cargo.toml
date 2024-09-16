@@ -5,6 +5,7 @@ edition = "2021"
 repository = "https://github.com/EgorHenek/pages-meta"
 license = "MIT"
 authors = ["Egor Glukhikh <eagluhih@gmail.com>"]
+description = "This is an application http service that takes url as input and returns json with page meta tags by url"
 
 [package.metadata.bininstall]
 pkg-url = "{ repo }/releases/download/{version}/{ name }-{ target }{ archive-suffix }"
