@@ -105,12 +105,12 @@ async fn extract_info(html: &str) -> Result<PageInfo, ServerError> {
 
     let mut page_info = PageInfo::default();
 
-    walk(dom.document, &mut page_info);
+    walk(dom.document, &mut page_info, false);
 
     Ok(page_info)
 }
 
-fn walk(handle: Handle, page_info: &mut PageInfo) {
+fn walk(handle: Handle, page_info: &mut PageInfo, mut is_head: bool) {
     let node = handle;
     if let NodeData::Element {
         ref name,
@@ -119,12 +119,14 @@ fn walk(handle: Handle, page_info: &mut PageInfo) {
     } = node.data
     {
         let tag_name = name.local.as_ref();
-        if tag_name == "title" {
+        if tag_name == "title" && is_head {
             if let Some(first_child) = node.children.borrow().first() {
                 if let NodeData::Text { ref contents } = first_child.data {
                     page_info.title = Some(contents.borrow().to_string());
                 }
             }
+        } else if tag_name == "head" {
+            is_head = true;
         } else if tag_name == "meta" {
             let attrs = attrs.borrow();
             if attrs.iter().any(|attr| {
@@ -161,7 +163,7 @@ fn walk(handle: Handle, page_info: &mut PageInfo) {
     }
 
     for child in node.children.borrow().iter() {
-        walk(child.clone(), page_info);
+        walk(child.clone(), page_info, is_head);
     }
 }
 
@@ -185,5 +187,14 @@ mod test {
         let result = validate_schema(url);
 
         assert!(result.is_err())
+    }
+
+    #[tokio::test]
+    async fn test_extract_info_when_many_titles() {
+        let html = "<html><head><title>Head title</title></head><body><svg><title>Body title</title></svg></body></html>";
+
+        let page_info = extract_info(html).await.unwrap();
+
+        assert_eq!(page_info.title.unwrap(), "Head title")
     }
 }
