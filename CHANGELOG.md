@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [0.1.1](https://github.com/EgorHenek/pages-meta/compare/35848da6f839b78942a6fbfdce54daa3bece56d8..0.1.1) - 2024-09-17
+#### Bug Fixes
+- restrict title extraction to head element (#3) - ([f7e46c2](https://github.com/EgorHenek/pages-meta/commit/f7e46c207e2da92971d64bd27136cc5e15c77d97)) - [@EgorHenek](https://github.com/EgorHenek)
+#### Build system
+- add installation of gcc-aarch64-linux-gnu for arm64 builds in CI workflow - ([0273555](https://github.com/EgorHenek/pages-meta/commit/027355592e678f420f8b2702e447a61740870962)) - [@EgorHenek](https://github.com/EgorHenek)
+#### Documentation
+- add web frontend usage example to README - ([15477a8](https://github.com/EgorHenek/pages-meta/commit/15477a8d988918e33e5e2c469a9c1a2c13ba4f5d)) - [@EgorHenek](https://github.com/EgorHenek)
+#### Miscellaneous Chores
+- add description for the application in Cargo.toml - ([35848da](https://github.com/EgorHenek/pages-meta/commit/35848da6f839b78942a6fbfdce54daa3bece56d8)) - [@EgorHenek](https://github.com/EgorHenek)
+
+- - -
+
 ## [0.1.0](https://github.com/EgorHenek/pages-meta/compare/a4460d6fef919f4c3cb9f2eca8a1efa8b3ec2320..0.1.0) - 2024-09-16
 #### Features
 - Create README file for Page Meta Extractor application - ([7608f75](https://github.com/EgorHenek/pages-meta/commit/7608f758da310151f2429a7321bb3d679438a17e)) - [@EgorHenek](https://github.com/EgorHenek)
