@@ -60,6 +60,19 @@ HOST=0.0.0.0 PORT=8080 ./pages-meta
 
 ## Usage
 
+### Web Frontend
+
+You can also interact with the service using the web frontend available at [https://pages-meta.henek.ru/](https://pages-meta.henek.ru/).
+
+#### Example
+
+1. Open the web frontend in your browser: [https://pages-meta.henek.ru/](https://pages-meta.henek.ru/).
+2. Enter the URL `https://example.com` in the input field.
+3. Click the "Extract" button.
+4. The extracted meta information will be displayed in JSON format.
+
+### API Usage
+
 Send a GET request to the service with the URL you want to extract meta information from:
 
 ```
