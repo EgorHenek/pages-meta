@@ -19,6 +19,9 @@ pkg-fmt = "zip"
 [package.metadata.binstall.overrides.aarch64-pc-windows-msvc]
 pkg-fmt = "zip"
 
+[dev-dependencies]
+mockito = "1.5"
+
 [dependencies]
 axum = { version = "0", features = ["tracing"] }
 config = "0.14"
