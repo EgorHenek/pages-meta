@@ -1,6 +1,6 @@
 [package]
 name = "pages-meta"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 repository = "https://github.com/EgorHenek/pages-meta"
 license = "MIT"

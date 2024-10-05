@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [0.2.0](https://github.com/EgorHenek/pages-meta/compare/5fb14862fccd831872935f22195d117b0827e3cf..0.2.0) - 2024-10-05
+#### Bug Fixes
+- Handle HTTP errors in `handle_extract` function (#10) - ([365d288](https://github.com/EgorHenek/pages-meta/commit/365d2887c2d8b942e620d3de66c1120253013ed7)) - [@EgorHenek](https://github.com/EgorHenek)
+#### Build system
+- bump tower-http from 0.5.2 to 0.6.1 (#5) - ([563cd0f](https://github.com/EgorHenek/pages-meta/commit/563cd0f99f1f922df536ee4185b22853582b588c)) - dependabot[bot]
+- bump axum from 0.7.5 to 0.7.6 (#6) - ([2658512](https://github.com/EgorHenek/pages-meta/commit/26585124a13473e1eeb9c95865b0bcdac631bb62)) - dependabot[bot]
+- reorder build step in publish-binaries workflow - ([5fb1486](https://github.com/EgorHenek/pages-meta/commit/5fb14862fccd831872935f22195d117b0827e3cf)) - [@EgorHenek](https://github.com/EgorHenek)
+#### Features
+- add OG tag extraction (#9) - ([95b6cfb](https://github.com/EgorHenek/pages-meta/commit/95b6cfb064c73ca7f52a6679dd7ba60ad3ac7396)) - [@EgorHenek](https://github.com/EgorHenek)
+
+- - -
+
 ## [0.1.1](https://github.com/EgorHenek/pages-meta/compare/35848da6f839b78942a6fbfdce54daa3bece56d8..0.1.1) - 2024-09-17
 #### Bug Fixes
 - restrict title extraction to head element (#3) - ([f7e46c2](https://github.com/EgorHenek/pages-meta/commit/f7e46c207e2da92971d64bd27136cc5e15c77d97)) - [@EgorHenek](https://github.com/EgorHenek)
