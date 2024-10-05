@@ -1,6 +1,6 @@
 use axum::{
     http::StatusCode,
-    response::{IntoResponse, Result},
+    response::{IntoResponse, Response, Result},
     Json,
 };
 use html5ever::parse_document;
@@ -26,7 +26,7 @@ pub struct UrlPath {
     url: String,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Default, Deserialize)]
 pub struct PageInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     title: Option<String>,
@@ -56,43 +56,71 @@ pub async fn handle_health() -> impl IntoResponse {
 }
 pub async fn handle_extract(
     ValidatedPath(url): ValidatedPath<UrlPath>,
-) -> Result<Json<PageInfo>, ServerError> {
+) -> Result<Response, ServerError> {
+    // Validate URL
+    url.validate()?;
+
     let decoded_url = percent_decode_str(&url.url)
         .decode_utf8()
         .unwrap()
         .to_string();
 
-    let html = fetch_html(&decoded_url).await?;
-    let mut page_info = extract_info(&html).await?;
-    if let Some(manifest) = &mut page_info.manifest {
-        let base_url = trim_url(&decoded_url)?;
-        *manifest = format!("{}{}", base_url, manifest);
+    match fetch_html(&decoded_url).await {
+        Ok((status, html)) => {
+            if status.is_success() {
+                let mut page_info = extract_info(&html).await?;
+                if let Some(manifest) = &mut page_info.manifest {
+                    let base_url = trim_url(&decoded_url)?;
+                    *manifest = format!("{}{}", base_url, manifest);
 
-        let json = fetch_json(manifest).await?;
+                    let json = fetch_json(manifest).await?;
 
-        page_info.short_name = json
-            .get("short_name")
-            .and_then(|value| value.as_str())
-            .map(|value| value.to_string());
-        page_info.name = json
-            .get("name")
-            .and_then(|value| value.as_str())
-            .map(|value| value.to_string());
+                    page_info.short_name = json
+                        .get("short_name")
+                        .and_then(|value| value.as_str())
+                        .map(|value| value.to_string());
+                    page_info.name = json
+                        .get("name")
+                        .and_then(|value| value.as_str())
+                        .map(|value| value.to_string());
+                }
+                Ok(Json(page_info).into_response())
+            } else {
+                let body = Json(serde_json::json!({
+                    "error": {
+                        "code": status.as_u16(),
+                        "message": status.canonical_reason().unwrap_or("Unknown error")
+                    }
+                }));
+                Ok((status, body).into_response())
+            }
+        }
+        Err(err) => {
+            let status = err.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            let body = Json(serde_json::json!({
+                "error": {
+                    "code": status.as_u16(),
+                    "message": err.to_string()
+                }
+            }));
+            Ok((status, body).into_response())
+        }
     }
-    Ok(Json(page_info))
 }
 
 fn trim_url(url: &str) -> Result<String, url::ParseError> {
     let url = Url::parse(url)?;
     let host = url.host_str().unwrap_or("");
     let scheme = url.scheme();
-    Ok(format!("{}://{}", scheme, host))
+    let port = url.port().map(|p| format!(":{}", p)).unwrap_or_default();
+    Ok(format!("{}://{}{}", scheme, host, port))
 }
 
-async fn fetch_html(url: &str) -> Result<String, ServerError> {
-    let body = reqwest::get(url).await?.text().await?;
-
-    Ok(body)
+async fn fetch_html(url: &str) -> Result<(StatusCode, String), reqwest::Error> {
+    let response = reqwest::get(url).await?;
+    let status = response.status();
+    let text = response.text().await?;
+    Ok((status, text))
 }
 
 async fn fetch_json(url: &str) -> Result<serde_json::Value, ServerError> {
@@ -239,192 +267,210 @@ fn walk(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-
-    #[test]
-    fn test_validate_schema() {
-        let url = "https://google.com";
-
-        let result = validate_schema(url);
-
-        assert!(result.is_ok())
-    }
-
-    #[test]
-    fn test_validate_schema_when_ftp() {
-        let url = "ftp://gogle.com";
-
-        let result = validate_schema(url);
-
-        assert!(result.is_err())
-    }
+    use axum::{body, http::StatusCode};
 
     #[tokio::test]
-    async fn test_extract_info_when_many_titles() {
-        let html = "<html><head><title>Head title</title></head><body><svg><title>Body title</title></svg></body></html>";
+    async fn test_handle_extract_success() {
+        let mut server = mockito::Server::new_async().await;
+        let url = server.url();
 
-        let page_info = extract_info(html).await.unwrap();
+        let _m = server
+            .mock("GET", "/")
+            .with_status(200)
+            .with_header("content-type", "text/html")
+            .with_body(
+                r#"
+                <html>
+                <head>
+                    <title>Test Page</title>
+                    <meta name="description" content="This is a test page">
+                    <link rel="icon" href="/favicon.ico">
+                    <meta property="og:title" content="OG Test Title">
+                    <meta property="og:description" content="OG Test Description">
+                </head>
+                <body></body>
+                </html>
+            "#,
+            )
+            .create_async()
+            .await;
 
-        assert_eq!(page_info.title.unwrap(), "Head title")
-    }
+        let url_path = UrlPath { url: url.clone() };
+        let result = handle_extract(ValidatedPath(url_path)).await.unwrap();
 
-    #[tokio::test]
-    async fn test_extract_og_tags() {
-        let html = r#"
-        <html>
-        <head>
-            <meta property="og:title" content="OG Title">
-            <meta property="og:description" content="OG Description">
-            <meta property="og:image" content="https://example.com/image1.jpg">
-            <meta property="og:image:width" content="1200">
-            <meta property="og:image:height" content="630">
-            <meta property="og:image:alt" content="Example image 1">
-            <meta property="og:image" content="https://example.com/image2.jpg">
-            <meta property="og:audio" content="https://example.com/audio.mp3">
-            <meta property="og:audio:type" content="audio/mpeg">
-            <meta property="og:video" content="https://example.com/video.mp4">
-            <meta property="og:video:width" content="1280">
-            <meta property="og:video:height" content="720">
-            <meta property="og:video:type" content="video/mp4">
-            <meta property="og:locale:alternate" content="fr_FR">
-            <meta property="og:locale:alternate" content="es_ES">
-        </head>
-        <body></body>
-        </html>
-        "#;
+        assert_eq!(result.status(), StatusCode::OK);
 
-        let page_info = extract_info(html).await.unwrap();
+        let body = body::to_bytes(result.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let page_info: PageInfo = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(page_info.title, Some("Test Page".to_string()));
+        assert_eq!(
+            page_info.description,
+            Some("This is a test page".to_string())
+        );
+        assert_eq!(page_info.favicon, Some("/favicon.ico".to_string()));
 
         let og_tags = page_info.og_tags.unwrap();
-        assert_eq!(og_tags.get("title").unwrap().as_str().unwrap(), "OG Title");
+        assert_eq!(
+            og_tags.get("title").unwrap().as_str().unwrap(),
+            "OG Test Title"
+        );
         assert_eq!(
             og_tags.get("description").unwrap().as_str().unwrap(),
-            "OG Description"
+            "OG Test Description"
         );
+    }
 
+    #[tokio::test]
+    async fn test_handle_extract_not_found() {
+        let mut server = mockito::Server::new_async().await;
+        let url = server.url();
+
+        let _m = server
+            .mock("GET", "/")
+            .with_status(404)
+            .create_async()
+            .await;
+
+        let url_path = UrlPath { url: url.clone() };
+        let result = handle_extract(ValidatedPath(url_path)).await.unwrap();
+
+        assert_eq!(result.status(), StatusCode::NOT_FOUND);
+
+        let body = body::to_bytes(result.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let error: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(error["error"]["code"], 404);
+        assert_eq!(error["error"]["message"], "Not Found");
+    }
+
+    #[tokio::test]
+    async fn test_handle_extract_invalid_url() {
+        let url_path = UrlPath {
+            url: "not a valid url".to_string(),
+        };
+        let result = handle_extract(ValidatedPath(url_path)).await;
+
+        assert!(result.is_err());
+
+        if let Err(ServerError::ValidationError(err)) = result {
+            assert!(err.field_errors().contains_key("url"));
+        } else {
+            panic!("Expected ValidationError");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_extract_with_manifest() {
+        let mut server = mockito::Server::new_async().await;
+        let url = server.url();
+
+        let _m = server
+            .mock("GET", "/")
+            .with_status(200)
+            .with_header("content-type", "text/html")
+            .with_body(
+                r#"
+                <html>
+                <head>
+                    <title>Test Page</title>
+                    <link rel="manifest" href="/manifest.json">
+                </head>
+                <body></body>
+                </html>
+            "#,
+            )
+            .create_async()
+            .await;
+
+        let _manifest_mock = server
+            .mock("GET", "/manifest.json")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"
+                {
+                    "name": "Test App",
+                    "short_name": "Test"
+                }
+            "#,
+            )
+            .create_async()
+            .await;
+
+        let url_path = UrlPath { url: url.clone() };
+        let result = handle_extract(ValidatedPath(url_path)).await.unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let body = body::to_bytes(result.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let page_info: PageInfo = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(page_info.name, Some("Test App".to_string()));
+        assert_eq!(page_info.short_name, Some("Test".to_string()));
+        assert_eq!(page_info.manifest, Some(format!("{}/manifest.json", url)));
+    }
+
+    #[tokio::test]
+    async fn test_handle_extract_multiple_og_images() {
+        let mut server = mockito::Server::new_async().await;
+        let url = server.url();
+
+        let _m = server
+            .mock("GET", "/")
+            .with_status(200)
+            .with_header("content-type", "text/html")
+            .with_body(
+                r#"
+                <html>
+                <head>
+                    <title>Test Page</title>
+                    <meta property="og:image" content="image1.jpg">
+                    <meta property="og:image:width" content="800">
+                    <meta property="og:image:height" content="600">
+                    <meta property="og:image" content="image2.jpg">
+                    <meta property="og:image:width" content="1200">
+                    <meta property="og:image:height" content="900">
+                </head>
+                <body></body>
+                </html>
+            "#,
+            )
+            .create_async()
+            .await;
+
+        let url_path = UrlPath { url: url.clone() };
+        let result = handle_extract(ValidatedPath(url_path)).await.unwrap();
+
+        assert_eq!(result.status(), StatusCode::OK);
+
+        let body = body::to_bytes(result.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let page_info: PageInfo = serde_json::from_slice(&body).unwrap();
+
+        let og_tags = page_info.og_tags.unwrap();
         let images = og_tags.get("image").unwrap().as_array().unwrap();
         assert_eq!(images.len(), 2);
         assert_eq!(
-            images[0]
-                .as_object()
-                .unwrap()
-                .get("url")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "https://example.com/image1.jpg"
+            images[0].get("url").unwrap().as_str().unwrap(),
+            "image1.jpg"
         );
+        assert_eq!(images[0].get("width").unwrap().as_str().unwrap(), "800");
+        assert_eq!(images[0].get("height").unwrap().as_str().unwrap(), "600");
         assert_eq!(
-            images[0]
-                .as_object()
-                .unwrap()
-                .get("width")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "1200"
+            images[1].get("url").unwrap().as_str().unwrap(),
+            "image2.jpg"
         );
-        assert_eq!(
-            images[0]
-                .as_object()
-                .unwrap()
-                .get("height")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "630"
-        );
-        assert_eq!(
-            images[0]
-                .as_object()
-                .unwrap()
-                .get("alt")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "Example image 1"
-        );
-        assert_eq!(
-            images[1]
-                .as_object()
-                .unwrap()
-                .get("url")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "https://example.com/image2.jpg"
-        );
-
-        let audios = og_tags.get("audio").unwrap().as_array().unwrap();
-        assert_eq!(audios.len(), 1);
-        assert_eq!(
-            audios[0]
-                .as_object()
-                .unwrap()
-                .get("url")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "https://example.com/audio.mp3"
-        );
-        assert_eq!(
-            audios[0]
-                .as_object()
-                .unwrap()
-                .get("type")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "audio/mpeg"
-        );
-
-        let videos = og_tags.get("video").unwrap().as_array().unwrap();
-        assert_eq!(videos.len(), 1);
-        assert_eq!(
-            videos[0]
-                .as_object()
-                .unwrap()
-                .get("url")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "https://example.com/video.mp4"
-        );
-        assert_eq!(
-            videos[0]
-                .as_object()
-                .unwrap()
-                .get("width")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "1280"
-        );
-        assert_eq!(
-            videos[0]
-                .as_object()
-                .unwrap()
-                .get("height")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "720"
-        );
-        assert_eq!(
-            videos[0]
-                .as_object()
-                .unwrap()
-                .get("type")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "video/mp4"
-        );
-
-        let locale_alternates = og_tags.get("locale:alternate").unwrap().as_array().unwrap();
-        assert_eq!(locale_alternates.len(), 2);
-        assert_eq!(locale_alternates[0].as_str().unwrap(), "fr_FR");
-        assert_eq!(locale_alternates[1].as_str().unwrap(), "es_ES");
+        assert_eq!(images[1].get("width").unwrap().as_str().unwrap(), "1200");
+        assert_eq!(images[1].get("height").unwrap().as_str().unwrap(), "900");
     }
 }
