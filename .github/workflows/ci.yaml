@@ -5,6 +5,7 @@ on:
       - main
   push:
     branches:
+      - renovate/**
       - main
 jobs:
   test:
