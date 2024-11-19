@@ -40,4 +40,4 @@ html5ever = "0.27"
 url = "2"
 markup5ever_rcdom = "0.3"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-validator = { version = "0.18", features = ["derive"] }
+validator = { version = "0.19", features = ["derive"] }
