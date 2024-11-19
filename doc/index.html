@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Page Meta Extractor</title>
+    <script src="https://cdn.jsdelivr.net/gh/gnat/surreal@main/surreal.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/json.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <form id="extractForm">
+    <input type="url" title="URL" id="url" required placeholder="Enter URL to extract metadata">
+      <script>
+        me().on('input', ev => {
+          const urlInput = ev.target.value;
+          const transformedUrlContainer = me('#transformed-url-container');
+          const transformedUrlElement = me('#transformed-url');
+        
+          if (urlInput) {
+              const transformedUrl = `https://meta.henek.ru/${encodeURIComponent(urlInput)}`;
+              transformedUrlElement.textContent = transformedUrl;
+              transformedUrlContainer.classRemove('hidden');
+          } else {
+              transformedUrlContainer.classAdd('hidden');
+          }
+        });
+      </script>
+    </input>
+    <button type="submit">Extract</button>
+    <script>
+        me().on('submit', async ev => {
+            ev.preventDefault();
+            const urlInput = me('#url');
+            const resultBlock = me('#result');
+            const statusBlock = me('#status');
+            const resultContainer = me('#result-container');
+            const submitButton = me('button[type="submit"]');
+            
+            // Show loading state
+            submitButton.disabled = true;
+            submitButton.textContent = 'Extracting...';
+            
+            try {
+                const response = await fetch(`https://meta.henek.ru/${encodeURIComponent(urlInput.value)}`);
+                const data = await response.json();
+                
+                // Display status and response time
+                const responseTime = response.headers.get('x-response-time');
+                statusBlock.textContent = `Status: ${response.status} ${response.statusText} | Processing Time: ${responseTime}`;
+                statusBlock.classRemove('hidden');
+                statusBlock.classRemove('error');
+                if (!response.ok) {
+                    statusBlock.classAdd('error');
+                }
+                
+                // Display JSON result
+                resultBlock.textContent = JSON.stringify(data, null, 2);
+                resultContainer.classRemove('hidden');
+                hljs.highlightElement(resultBlock);
+            } catch (error) {
+                statusBlock.classRemove('hidden');
+                statusBlock.classAdd('error');
+                statusBlock.textContent = `Error: ${error.message}`;
+                resultBlock.textContent = '';
+                resultContainer.classAdd('hidden');
+            } finally {
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.textContent = 'Extract';
+            }
+        });
+    </script>
+  </form>
+
+  <div id="transformed-url-container" class="hidden">
+    <div class="transformed-url">
+      <span id="transformed-url"></span>
+      <button class="copy-url-button" title="Copy URL" type="button">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+        </svg>
+        <span class="copy-tooltip">Copied!</span>
+        <script>
+          me().on('click', async () => {
+              const transformedUrl = me('#transformed-url').textContent;
+              try {
+                  await navigator.clipboard.writeText(transformedUrl);
+                  const tooltip = me('.copy-url-button .copy-tooltip');
+                  tooltip.classAdd('show');
+                  setTimeout(() => tooltip.classRemove('show'), 1500);
+              } catch (err) {
+                  console.error('Failed to copy URL: ', err);
+              }
+          });
+        </script>
+      </button>
+    </div>
+  </div>
+
+  <div id="status" class="hidden"></div>
+  <div id="result-container" class="hidden">
+    <button class="copy-button" title="Copy to clipboard">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+      </svg>
+      <span class="copy-tooltip">Copied!</span>
+      <script>
+        me().on("click", async ev => {
+            const resultText = me("#result").textContent;
+            try {
+                await navigator.clipboard.writeText(resultText);
+                const tooltip = any('.copy-tooltip')[1];
+                tooltip.classAdd('show');
+                setTimeout(() => tooltip.classRemove('show'), 1500);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+        })
+      </script>
+    </button>
+    <pre><code id="result" class="language-json"></code></pre>
+  </div>
+  <div class="documentation">
+    <h2>Documentation</h2>
+    <p>This service allows you to extract meta information from URLs.</p>
+    <p>It is provided as a free API through requests returning JSON to <a href="https://meta.henek.ru" target="_blank" rel="noopener noreferrer">meta.henek.ru</a> or a self-hosted version from our <a href="https://github.com/EgorHenek/pages-meta" target="_blank" rel="noopener noreferrer" class="github-link">
+        <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        GitHub Repository - Source code and self-hosting instructions
+      </a>.</p>
+    <h3>How to use:</h3>
+    <ul>
+      <li>Enter a URL in the input field above.</li>
+      <li>Click the "Extract" button or press Enter.</li>
+      <li>After processing, you'll see the response time and the extracted metadata in JSON format.</li>
+    </ul>
+    <p>
+      <strong>API Endpoints:</strong><br>
+      <a href="https://meta.henek.ru" target="_blank" rel="noopener noreferrer">https://meta.henek.ru</a> - Main API endpoint<br>
+    </p>
+  </div>
+</body>
+</html>
