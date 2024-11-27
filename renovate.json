@@ -5,7 +5,6 @@
 	"packageRules": [
 		{
 			"matchUpdateTypes": ["patch", "minor"],
-			"matchCurrentVersion": "!/^0/",
 			"automerge": true
 		},
 		{
@@ -15,7 +14,8 @@
 		},
 		{
 			"matchCategories": ["docker"],
-			"addLabels": ["build"]
+			"addLabels": ["build"],
+			"automerge": true
 		},
 		{
 			"matchDepTypes": ["devDependencies"],
