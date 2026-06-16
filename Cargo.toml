@@ -32,7 +32,7 @@ tokio = { version = "1", features = ["full"] }
 thiserror = "1"
 tower-http = { version = "0.6", features = ["timeout", "trace"] }
 tracing = "0.1"
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
   "json",
   "rustls-tls-native-roots",
 ] }
