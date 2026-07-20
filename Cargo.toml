@@ -38,6 +38,6 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 html5ever = "0.27"
 url = "2"
-markup5ever_rcdom = "0.3"
+markup5ever_rcdom = "0.36"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 validator = { version = "0.18", features = ["derive"] }
